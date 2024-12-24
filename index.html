@@ -25,7 +25,12 @@
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.12.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.12.0/firebase-database.js"></script>
-    <script>
+    
+   <script type="module">
+  // Firebase modüllerini import edin
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
+  import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js";
+
         // Firebase yapılandırması
         const firebaseConfig = {
   apiKey: "AIzaSyD2yi59xBp86vsOnHjEx_urbDfkefAxgCI",
