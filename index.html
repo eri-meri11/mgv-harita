@@ -5,10 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Harita İşaretleme</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
-    import { getDatabase, ref, set, get, child, remove } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js";
+  <style>
+    #map { height: 500px; }
+    .popup { width: 200px; }
+  </style>
+</head>
+<body>
 
+  <div id="map"></div>
+  
+  <h2>Yeni İşaret Ekle</h2>
+  <label for="markerName">İşaret İsmi:</label>
+  <input type="text" id="markerName" placeholder="İşaret adı girin">
+  <button onclick="addMarker()">İşaret Ekle</button>
+
+  <h2>Harita Üzerindeki İşaretleri Sil</h2>
+  <label for="markerId">İşaret ID'si:</label>
+  <input type="text" id="markerId" placeholder="İşaret ID'si girin">
+  <button onclick="deleteMarker()">İşareti Sil</button>
+
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js"></script>
+
+  <script>
     // Firebase yapılandırması
     const firebaseConfig = {
       apiKey: "AIzaSyD2yi59xBp86vsOnHjEx_urbDfkefAxgCI",
@@ -20,70 +40,56 @@
         appId: "1:741814837623:web:f993ec38c0ad3842338172",
         measurementId: "G-VYYME7EVPV"
     };
-    
-    const app = initializeApp(firebaseConfig);
-    const database = getDatabase(app);
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.database(app);
 
-    // Harita oluşturma
-    const map = L.map('map').setView([37.7749, -122.4194], 13); // Başlangıç koordinatları
-
-    // Harita tile'ları (katmanları) ekle
+    // Harita Başlangıcı
+    const map = L.map('map').setView([51.505, -0.09], 13);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-    // Firebase'den işaretleri alıp haritada göster
-    function loadMarkers() {
-      const markersRef = ref(database, 'markers');
-      get(markersRef).then(snapshot => {
-        if (snapshot.exists()) {
-          const markers = snapshot.val();
-          Object.keys(markers).forEach(id => {
-            const marker = markers[id];
-            const latLng = [marker.lat, marker.lng];
-            const markerInstance = L.marker(latLng).addTo(map)
-              .bindPopup(`<b>${marker.name}</b><br><button onclick="deleteMarker('${id}')">Sil</button>`);
-          });
+    // Firebase veritabanından işaretleri yükle
+    db.ref('markers').on('value', function(snapshot) {
+      const markers = snapshot.val();
+      if (markers) {
+        for (const id in markers) {
+          const marker = markers[id];
+          L.marker([marker.lat, marker.lng]).addTo(map)
+            .bindPopup(`<b>${marker.name}</b>`)
+            .openPopup();
         }
-      }).catch(error => {
-        console.error(error);
-      });
-    }
-
-    loadMarkers();
-
-    // İşaret ekleme
-    map.on('click', function(e) {
-      const name = prompt('İşaretin ismini girin:');
-      if (name) {
-        const markerId = Date.now().toString(); // Benzersiz ID
-        const newMarker = {
-          name: name,
-          lat: e.latlng.lat,
-          lng: e.latlng.lng
-        };
-
-        // Firebase'e işaret verisini ekle
-        const markerRef = ref(database, 'markers/' + markerId);
-        set(markerRef, newMarker).then(() => {
-          L.marker([e.latlng.lat, e.latlng.lng]).addTo(map)
-            .bindPopup(`<b>${name}</b><br><button onclick="deleteMarker('${markerId}')">Sil</button>`);
-        });
       }
     });
 
-    // İşaret silme fonksiyonu
-    function deleteMarker(id) {
-      const markerRef = ref(database, 'markers/' + id);
-      remove(markerRef).then(() => {
-        alert('İşaret silindi');
-        window.location.reload(); // Sayfayı yeniden yükle
-      }).catch(error => {
-        console.error(error);
+    // İşaret Ekleme
+    function addMarker() {
+      const markerName = document.getElementById('markerName').value;
+      if (!markerName) return alert('İşaret ismini girin');
+      
+      map.once('click', function(e) {
+        const lat = e.latlng.lat;
+        const lng = e.latlng.lng;
+        const newMarkerRef = db.ref('markers').push();
+        newMarkerRef.set({
+          name: markerName,
+          lat: lat,
+          lng: lng
+        });
+      });
+    }
+
+    // İşaret Silme
+    function deleteMarker() {
+      const markerId = document.getElementById('markerId').value;
+      if (!markerId) return alert('Silmek istediğiniz işaretin ID\'sini girin');
+      
+      const markerRef = db.ref('markers/' + markerId);
+      markerRef.remove().then(() => {
+        alert('İşaret başarıyla silindi');
+      }).catch((error) => {
+        alert('İşaret silinemedi: ' + error.message);
       });
     }
   </script>
-</head>
-<body>
-  <h1>Harita Üzerinde İşaretleme</h1>
-  <div id="map" style="height: 600px;"></div>
+
 </body>
 </html>
