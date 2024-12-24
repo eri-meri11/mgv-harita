@@ -1,98 +1,89 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Harita Uygulaması</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <style>
-        #map { height: 500px; }
-    </style>
-<!-- Leaflet JS -->
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<!-- Firebase SDK v8 -->
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-<script type="module">
-  import firebase from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js';
-  import 'https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js';
-</script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Harita İşaretleme</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
+    import { getDatabase, ref, set, get, child, remove } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js";
 
+    // Firebase yapılandırması
+    const firebaseConfig = {
+      apiKey: "AIzaSyD2yi59xBp86vsOnHjEx_urbDfkefAxgCI",
+        authDomain: "mavigelecekvakfi-harita.firebaseapp.com",
+        databaseURL: "https://mavigelecekvakfi-harita-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "mavigelecekvakfi-harita",
+        storageBucket: "mavigelecekvakfi-harita.firebasestorage.app",
+        messagingSenderId: "741814837623",
+        appId: "1:741814837623:web:f993ec38c0ad3842338172",
+        measurementId: "G-VYYME7EVPV"
+    };
+    
+    const app = initializeApp(firebaseConfig);
+    const database = getDatabase(app);
+
+    // Harita oluşturma
+    const map = L.map('map').setView([37.7749, -122.4194], 13); // Başlangıç koordinatları
+
+    // Harita tile'ları (katmanları) ekle
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    // Firebase'den işaretleri alıp haritada göster
+    function loadMarkers() {
+      const markersRef = ref(database, 'markers');
+      get(markersRef).then(snapshot => {
+        if (snapshot.exists()) {
+          const markers = snapshot.val();
+          Object.keys(markers).forEach(id => {
+            const marker = markers[id];
+            const latLng = [marker.lat, marker.lng];
+            const markerInstance = L.marker(latLng).addTo(map)
+              .bindPopup(`<b>${marker.name}</b><br><button onclick="deleteMarker('${id}')">Sil</button>`);
+          });
+        }
+      }).catch(error => {
+        console.error(error);
+      });
+    }
+
+    loadMarkers();
+
+    // İşaret ekleme
+    map.on('click', function(e) {
+      const name = prompt('İşaretin ismini girin:');
+      if (name) {
+        const markerId = Date.now().toString(); // Benzersiz ID
+        const newMarker = {
+          name: name,
+          lat: e.latlng.lat,
+          lng: e.latlng.lng
+        };
+
+        // Firebase'e işaret verisini ekle
+        const markerRef = ref(database, 'markers/' + markerId);
+        set(markerRef, newMarker).then(() => {
+          L.marker([e.latlng.lat, e.latlng.lng]).addTo(map)
+            .bindPopup(`<b>${name}</b><br><button onclick="deleteMarker('${markerId}')">Sil</button>`);
+        });
+      }
+    });
+
+    // İşaret silme fonksiyonu
+    function deleteMarker(id) {
+      const markerRef = ref(database, 'markers/' + id);
+      remove(markerRef).then(() => {
+        alert('İşaret silindi');
+        window.location.reload(); // Sayfayı yeniden yükle
+      }).catch(error => {
+        console.error(error);
+      });
+    }
+  </script>
 </head>
 <body>
-    <h1>Harita Üzerinde İşaretleme</h1>
-    <div id="map"></div>
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.12.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.12.0/firebase-database.js"></script>
-    
-   <script type="module">
-  // Firebase modüllerini import edin
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js";
-  import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js";
-
-        // Firebase yapılandırması
-        const firebaseConfig = {
-  apiKey: "AIzaSyD2yi59xBp86vsOnHjEx_urbDfkefAxgCI",
-  authDomain: "mavigelecekvakfi-harita.firebaseapp.com",
-  databaseURL: "https://mavigelecekvakfi-harita-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "mavigelecekvakfi-harita",
-  storageBucket: "mavigelecekvakfi-harita.firebasestorage.app",
-  messagingSenderId: "741814837623",
-  appId: "1:741814837623:web:f993ec38c0ad3842338172",
-  measurementId: "G-VYYME7EVPV"
-};
-
-        // Firebase'i başlat
-        const app = firebase.initializeApp(firebaseConfig);
-        const database = firebase.database(app);
-
-        // Leaflet haritasını başlat
-        const map = L.map('map').setView([37.7749, -122.4194], 13); // Örnek olarak San Francisco
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-
-        // İşaretçi eklemek için bir marker array
-        let markers = [];
-
-        // Harita üzerine tıklanarak işaretçi ekleme
-        map.on('click', function(e) {
-            const lat = e.latlng.lat;
-            const lng = e.latlng.lng;
-
-            // Marker ekle
-            const marker = L.marker([lat, lng]).addTo(map);
-            markers.push(marker);
-
-            // Firebase'e kaydet
-            firebase.database().ref('markers').push({
-                lat: lat,
-                lng: lng
-            });
-        });
-
-        // Firebase'e kaydedilen işaretçileri yükle
-        firebase.database().ref('markers').on('child_added', function(snapshot) {
-            const data = snapshot.val();
-            const lat = data.lat;
-            const lng = data.lng;
-            
-            // Yeni işaretçiyi haritaya ekle
-            const marker = L.marker([lat, lng]).addTo(map);
-            markers.push(marker);
-        });
-
-        // İşaretçileri silme işlemi
-        function clearMarkers() {
-            markers.forEach(marker => marker.remove());
-            markers = [];
-            firebase.database().ref('markers').remove(); // Firebase'deki işaretçileri sil
-        }
-
-        // Silme butonu
-        const clearButton = document.createElement('button');
-        clearButton.innerText = 'İşaretçileri Temizle';
-        clearButton.onclick = clearMarkers;
-        document.body.appendChild(clearButton);
-    </script>
+  <h1>Harita Üzerinde İşaretleme</h1>
+  <div id="map" style="height: 600px;"></div>
 </body>
 </html>
